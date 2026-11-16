@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "mobile_motion_sensor",
+  "project_id": "00547d45-a38b-46be-b917-acb989612fb9"
+}
