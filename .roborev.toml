@@ -1,0 +1,9 @@
+# Repo-local roborev config.
+#
+# Keep this file MINIMAL. A fully generated file writes every key with a zero or
+# empty value, and those shadow the global config instead of inheriting from it.
+# Only list keys this repo means to override. ../my-bangle/.roborev.toml records
+# the measurement behind that rule (2026-08-02).
+
+# Only medium and above are acted on.
+review_min_severity = 'medium'
