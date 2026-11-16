@@ -2,6 +2,25 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-16: sensor logic and watch listener written, tested in Node only
+
+Neither has run on a device. A passing host test says the logic matches `docs/protocol.md`, not that a Puck or the watch behaves that way.
+
+- **`firmware/core.js`** (`mobile-motion-sensor-ssh`): the sensor's decisions with no pin, timer or radio in them. `node firmware/test-core.js`: 67 checks, 26 mutants, every mutant caught by a named check. The hardware shell that drives it is part of `mobile-motion-sensor-3mg` and needs the Puck
+- **`../my-bangle/apps/msense/`** (`mobile-motion-sensor-40v`), commits `78c796d` and `e8cd831` there: boot code that scans, applies the protocol's watch rules and logs to Storage. 49 checks, 29 mutants. The second commit fixes a finding from an automated security pass: the log's size limit was only checked at boot (`../my-bangle/docs/review-findings.md`, 2026-11-16). Its `NOTES.md` lists what only the watch can answer
+- **`../my-bangle/docs/bangle2-limits.md`** (`mobile-motion-sensor-6r8`): the one-connection line now says one incoming connection was measured and that an outgoing connection, or scanning, alongside the phone was not
+- Added a test vector to `docs/protocol.md`
+- Handed the owner the first watch device window with a runbook (`mobile-motion-sensor-29n`). The five watch measurements that need it now depend on it
+- **Owner, in session:** a spare ESP32 exists and will be the advertiser for the latency and loss trials (`mobile-motion-sensor-xx0`) before the parts arrive. It was not to hand today. Noted on `mobile-motion-sensor-vqw`
+
+### Decided while writing the code, not in the brief
+
+- The sensor ignores a button press that began within 1 s of power-up, so Espruino's button-at-power-up recovery paths never double as a feature
+- A long press toggles the maintenance window. The brief only says it opens it
+- Two rising edges on the PIR line less than 500 ms apart count once. A guess at glitch rejection; the bench test for radio false triggers (`mobile-motion-sensor-mnc`) will say whether it is needed or enough
+- PIR settling defaults to 30 s. A placeholder until `mobile-motion-sensor-56v`
+- On the watch, the time a sensor was last heard is not saved across an app switch, so each switch restarts the 35 s lost-sensor clock
+
 ## 2026-11-16: plan filed, protocol and recovery runbook drafted
 
 Nothing was measured today. No parts have arrived and no device was connected.

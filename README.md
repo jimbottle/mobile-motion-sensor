@@ -2,7 +2,7 @@
 
 A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someone walks into its view. A Puck.js v2 reads a passive infrared sensor and broadcasts over Bluetooth; the watch listens and buzzes. No phone, no hub.
 
-**State on 2026-11-16: planning.** No parts have arrived, no firmware exists and nothing has been measured.
+**State on 2026-11-16: planning.** No parts have arrived and nothing has been measured. The sensor's logic and the watch's listener exist and pass their tests in Node; neither has run on a device.
 
 ## What is here
 
@@ -11,9 +11,11 @@ A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someo
 | `docs/brief-2026-11-16.md` | The owner's brief: requirements, parts, wiring, bench plan and the list of unverified claims with their sources. A dated input, not edited afterwards |
 | `docs/protocol.md` | The Bluetooth protocol between sensor and watch, version 1 |
 | `docs/runbooks/puck-recovery.md` | Getting back into a Puck.js that cannot be reached over Bluetooth |
+| `firmware/core.js` | The sensor's logic with no hardware in it: armed state, counter, button, advertising schedule, packet bytes. Runs in Node and is meant to run on the Puck |
+| `firmware/test-core.js` | Its tests: `node firmware/test-core.js` |
 | `CHANGELOG.md` | What was done, what worked and what did not |
 
-The watch-side code lives in the sibling repo `my-bangle`, under `apps/`, with that repo's deploy tooling and measured platform limits.
+The watch-side code lives in the sibling repo `my-bangle`, under `apps/msense/`, with that repo's deploy tooling and measured platform limits.
 
 ## How work is tracked
 

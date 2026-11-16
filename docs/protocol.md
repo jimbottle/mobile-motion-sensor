@@ -51,6 +51,16 @@ All of it is **[spec]**. It differs from the brief's starting layout in three wa
 - **The boot ID is 16 bits, not 8.** With 8 bits, one battery change in 256 would reuse the old boot ID with the counter back at 0, and the watch would read that as a stale packet and ignore the sensor until the counter caught up
 - **A development-build flag was added**, so a build with an open console is visible on the air as well as at boot
 
+### Test vector
+
+Sensor 1, boot ID `0xBEEF`, armed, counter 258, battery 87%, 1.2 s after its last trigger:
+
+```
+4D 01 01 EF BE 01 02 01 57 0C
+```
+
+`firmware/test-core.js` checks the encoder against these bytes.
+
 ### Flags
 
 | Bit | Name | Meaning |
