@@ -13,6 +13,7 @@ A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someo
 | `docs/runbooks/puck-recovery.md` | Getting back into a Puck.js that cannot be reached over Bluetooth |
 | `firmware/core.js` | The sensor's logic with no hardware in it: armed state, counter, button, advertising schedule, packet bytes. Runs in Node and is meant to run on the Puck |
 | `firmware/test-core.js` | Its tests: `node firmware/test-core.js` |
+| `tools/esp32-advertiser/` | An ESP32-C3 sketch that stands in for the sensor's radio in watch-side latency trials. The build command is at the top of the file |
 | `CHANGELOG.md` | What was done, what worked and what did not |
 
 The watch-side code lives in the sibling repo `my-bangle`, under `apps/msense/`, with that repo's deploy tooling and measured platform limits.

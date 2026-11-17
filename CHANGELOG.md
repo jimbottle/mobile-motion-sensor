@@ -2,6 +2,13 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-16: ESP32-C3 stand-in transmitter written; compiles, never run
+
+- **Changed plan:** the owner has no spare ESP32 after all. The board on hand, an UNO with an ESP8266, has no Bluetooth. The owner is adding an ESP32-C3-DevKit-RUST-2 (Adafruit 5787) to the parts order as the controlled advertiser, so the latency and loss trials (`mobile-motion-sensor-xx0`) wait for the box. This part is not in the brief's parts table
+- **`tools/esp32-advertiser/esp32-advertiser.ino`** (`mobile-motion-sensor-7o0`): advertises the protocol v1 payload and takes commands over USB serial. It compiles for `esp32:esp32:esp32c3:CDCOnBoot=cdc` with arduino-cli 1.6.0 and core `esp32:esp32` 3.3.12: 622043 bytes, 47% of program space. **It has not run on a board.** Whether the C3 accepts a 20 ms non-connectable interval, and whether `CDCOnBoot=cdc` is the right serial setting for this board, are unknown until one is plugged in
+- **Didn't work:** the first build used `ADV_TYPE_NONCONN_IND`, the Bluedroid constant. Core 3.3.12 builds the C3 on NimBLE (`CONFIG_BT_NIMBLE_ENABLED=y` in its sdkconfig), where the type is `BLE_GAP_CONN_MODE_NON`
+- Installed on this Mac: `arduino-cli` 1.6.0 from Homebrew and the `esp32:esp32` 3.3.12 core
+
 ## 2026-11-16: sensor logic and watch listener written, tested in Node only
 
 Neither has run on a device. A passing host test says the logic matches `docs/protocol.md`, not that a Puck or the watch behaves that way.
