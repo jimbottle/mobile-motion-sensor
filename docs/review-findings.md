@@ -8,10 +8,15 @@ A finding goes here when it was **valid**: it described a real defect, and fixin
 
 Check these before committing.
 
+- **A procedure that worked, left in the session that ran it.** If a record says a tool did something, the code that did it has to be in the tool. Before committing a result, check that every step that produced it can be repeated from the repo. Review 7685 #1
 - **A stand-in that models less than the platform does.** The Node stand-ins for Espruino had no `save()`, so a bug that only exists across `save()` passed. When a test double leaves out a platform behaviour the instructions rely on, say so next to the instructions or model it. Review 7683 #1
 - **A library call used from its header, without reading what it keeps.** A signature says what a call takes, not what it stores between calls. Before a loop or callback runs for an unbounded time, read the library's handler for anything that accumulates. Review 7681 #1
 
 ## 2026-11-24
+
+### Review 7685 of `37a8940`, `tools/puck-console/index.html`
+
+- **Medium. Valid.** The changelog credited the page with the chunked upload, the read-back and the `.bootcde`, but those were typed into the browser session and never committed, so the next session could not have repeated the procedure from the repo. **Fixed** in `5f0bdf3`: `puck.ask`, `puck.upload`, `puck.run` and `puck.persist` are in the page. Syntax-checked in Node; not run against a Puck since being committed
 
 ### Review 7683 of `2aa0fb9`, `firmware/shell.js` and `tools/build-puck.js`
 

@@ -19,7 +19,8 @@ The first time anything in this repo ran on hardware. One Puck.js, one BS412 on 
 **How it was done**
 
 - **`tools/puck-console/index.html`**, new: a one-button Web Bluetooth page served from localhost. The owner clicks Connect and picks the Puck; the rest is driven from the page's JavaScript. The built file goes to the Puck's Storage as `poc.js` in 192-byte pieces, each acknowledged, and is read back byte for byte before it is run with `eval`. This is the dev loop `mobile-motion-sensor-3ph` asked for, less the interval measurement
-- A two-line `.bootcde` on the Puck now evals `poc.js` at every start, so a power glitch does not lose the program. Whether it runs after a reset was not observed
+  - As first committed (`37a8940`) the page held only the connection and a raw send; the upload, read-back, run and `.bootcde` steps lived in the browser session that ran them. Review 7685 caught that. They are now `puck.upload`, `puck.run` and `puck.persist` in the page, written from the session's code. **The committed versions have not been run against a Puck**
+- A one-line `.bootcde` on the Puck, `eval(require("Storage").read("poc.js"));`, now evals `poc.js` at every start, so a power glitch does not lose the program. Whether it runs after a reset was not observed
 
 **Did not work, or got in the way**
 

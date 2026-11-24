@@ -3,8 +3,13 @@
 
      The person clicks Connect and picks the Puck in Chrome's chooser, which is
      the one step that must be a human click. Everything after that is driven
-     from the page's JavaScript: puck.send(text) writes to the console,
+     from the page's JavaScript: puck.upload(url, name) stores a file on the Puck and
+     reads it back, puck.run(name) runs it, puck.persist(name) makes it run
+     at every start. Underneath, puck.send(text) writes to the console and
      puck.rx holds everything the Puck has said.
+
+     The eval() in the strings below is text sent to the Puck, which is how
+     Espruino runs a stored program. Nothing is eval'd in this page.
 
      Serve it from this Mac, since Web Bluetooth needs a secure context and
      localhost counts as one. From the repo root:
