@@ -18,6 +18,8 @@ The first time anything in this repo ran on hardware. One Puck.js, one BS412 on 
 
 - **Room test, same day, console disconnected and the watch back on the phone:** armed, the sensor did not react to the owner walking in front of it. It first triggered when he picked the rig up, and after that "it did trigger correctly", buzzing the watch on movement. So the listener did restart by itself after the watch left the Settings screen. Why it was deaf at first is not known. Two candidates, not separated: a leaning jumper that was not making contact until the rig was handled (a power or ground wire reconnecting would also produce the first rising edge); or the sensor's output sitting high from power-on, which the firmware does not count until it has dropped and risen again
 
+- **Later the same day the Puck stopped responding** with the sensor circuit unplugged (the owner's report; which symptom, LEDs or button, was not recorded). Lifting the coin cell off its contact for a second brought it back: "that worked". That is the first sign the `.bootcde` start works after a reset, but the LED sequence he saw was not recorded, so it is not confirmed. **Why it stopped responding is not known**: nothing was connected to read its state or error flags before the reset cleared them
+
 **How it was done**
 
 - **`tools/puck-console/index.html`**, new: a one-button Web Bluetooth page served from localhost. The owner clicks Connect and picks the Puck; the rest is driven from the page's JavaScript. The built file goes to the Puck's Storage as `poc.js` in 192-byte pieces, each acknowledged, and is read back byte for byte before it is run with `eval`. This is the dev loop `mobile-motion-sensor-3ph` asked for, less the interval measurement
