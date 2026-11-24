@@ -18,7 +18,7 @@ function check(name, ok) {
 
 function boot(opts, mutate) {
   var w = { clock: 5000,   // ms, kept whole so a timer due exactly at the end of run() fires
-    timers: [], watches: {}, pins: {}, adv: [], sleeps: 0, wakes: 0, pulses: [], pirLevel: 0, intervals: 0, log: "", logThrows: false, handlers: {}, every: null };
+    timers: [], watches: {}, pins: {}, adv: [], sleeps: 0, wakes: 0, pulses: [], pirLevel: 0, intervals: 0, log: "", logThrows: false, handlers: {}, every: null, printed: [] };
   function pin(name) {
     return { name: name,
       write: function (v) { w.pins[name] = v; },
@@ -59,6 +59,7 @@ function boot(opts, mutate) {
       vm.runInContext("(function(exports){(" + g.Modules.cache[id].toString() + ")();})", ctx)(exports);
       return exports;
     },
+    print: function () { w.printed.push(Array.prototype.join.call(arguments, " ")); },
     Math: Math, JSON: JSON
   };
   var ctx = vm.createContext(g);
@@ -170,12 +171,18 @@ function scenarios(mutate) {
   r["log: the ten-minute line has battery and free memory"] = lines(d).slice(-1)[0] === "H,87,2000";
   d.handlers.uncaughtException("boom");
   r["log: an uncaught error is logged"] = lines(d).slice(-1)[0] === "X,boom";
+  r["log: an uncaught error is still printed on the console"] = d.printed.join() === "Uncaught boom";
 
   var full = boot({ before: function (x) { x.log = new Array(16000 - 5).join("x") + "\n"; } }, mutate);
   var size = full.log.length;
   full.run(2000); full.press(200);
   r["log: nothing is written past the size limit, counting what was there at start"] = full.log.length === size;
   r["log: a full log does not stop the sensor"] = (full.last().manufacturerData[5] & 1) === 1;
+  full.handlers.uncaughtException("late");
+  r["log: an error is still recorded when the log is full"] = /,X,late\n$/.test(full.log);
+  var n0 = full.log.length;
+  for (var q = 0; q < 200; q++) full.handlers.uncaughtException("flood");
+  r["log: errors cannot run past their reserve"] = full.log.length > n0 && full.log.length <= 16000 + 1000;
 
   var broken = boot({ before: function (x) { x.logThrows = true; } }, mutate);
   broken.run(2000); broken.press(200);
@@ -205,12 +212,14 @@ var mutants = [
   ["no dev LED pattern at boot", function (s) { return s.replace("if (s.cfg.dev) { digitalPulse(LED1", "if (false) { digitalPulse(LED1"); }],
   ["start() does not clear earlier watches and timers", function (s) { return s.replace("clearWatch();\n  clearInterval();", "__stale = true;"); }],
   ["start() keeps the old state", function (s) { return s.replace("s = core.create(CONFIG.core);\n  wakeTimer", "wakeTimer"); }],
-  ["log has no size limit", function (s) { return s.replace("if (logLen + line.length > LOG_MAX) { logOff = true; return; }", ""); }],
+  ["log has no size limit", function (s) { return s.replace("if (logLen + line.length > LOG_MAX + (letter === \"X\" ? LOG_X_RESERVE : 0)) return;", ""); }],
+  ["errors get no reserve in a full log", function (s) { return s.replace("LOG_MAX + (letter === \"X\" ? LOG_X_RESERVE : 0)", "LOG_MAX"); }],
+  ["error handler hides errors from the console", function (s) { return s.replace("print(\"Uncaught\", e); ", ""); }],
   ["log size not read at start", function (s) { return s.replace("if (!logOff) logLen = logSize();", ""); }],
   ["a Storage error escapes the log", function (s) { return s.replace("try { require(\"Storage\").open(LOG, \"a\").write(line); logLen += line.length; } catch (e) { logOff = true; }", "require(\"Storage\").open(LOG, \"a\").write(line); logLen += line.length;").replace("  } catch (e) { logOff = true; }\n  return n;", "  } finally {}\n  return n;"); }],
   ["PIR edges not logged", function (s) { return s.replace("if (ev.t === \"pir\") logEv(\"P\", ev.level ? 1 : 0, s.counter);", ""); }],
   ["mode changes not logged", function (s) { return s.replace("if (s.mode !== mode) logEv(\"M\", mode, s.mode);", ""); }],
-  ["uncaught errors not logged", function (s) { return s.replace("process.on(\"uncaughtException\", function (e) { logEv(\"X\", String(e)); });", ""); }],
+  ["uncaught errors not logged", function (s) { return s.replace("logEv(\"X\", String(e)); });", "});"); }],
   ["limit has no LED pattern", function (s) { return s.replace("else if (fx === \"led:limit\")", "else if (false)"); }],
   ["no blink on a counted trigger", function (s) { return s.replace("if (s.cfg.dev && s.counter !== before)", "if (false)"); }]
 ];

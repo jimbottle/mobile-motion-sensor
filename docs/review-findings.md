@@ -8,12 +8,18 @@ A finding goes here when it was **valid**: it described a real defect, and fixin
 
 Check these before committing.
 
+- **A handler that observes also replaces.** Installing an error or event handler can switch off the platform's default behaviour. Before adding one, find out what stops happening. Review 7692 #1
 - **"Read back identical" proves the copy, not the source.** A byte-for-byte read-back passes for the wrong file as readily as for the right one. Validate what is about to be sent before the destructive step. Review 7687 #1
 - **A procedure that worked, left in the session that ran it.** If a record says a tool did something, the code that did it has to be in the tool. Before committing a result, check that every step that produced it can be repeated from the repo. Review 7685 #1
 - **A stand-in that models less than the platform does.** The Node stand-ins for Espruino had no `save()`, so a bug that only exists across `save()` passed. When a test double leaves out a platform behaviour the instructions rely on, say so next to the instructions or model it. Review 7683 #1
 - **A library call used from its header, without reading what it keeps.** A signature says what a call takes, not what it stores between calls. Before a loop or callback runs for an unbounded time, read the library's handler for anything that accumulates. Review 7681 #1
 
 ## 2026-11-24
+
+### Review 7692 of `f45b4cb`, `firmware/shell.js`
+
+- **Medium. Valid.** The new `uncaughtException` handler only wrote to the log. On Espruino a caught error is no longer printed, so errors would have vanished from the bench console, and from everywhere once the log was full or off. **Fixed:** the handler prints the error as well, and `X` lines may run 1000 bytes past the log's limit. Three checks and two mutants. Not verified on a Puck
+- **Low. Valid, comment only.** The log header said the clock restarts at every start line. It is `getTime()`, which restarts only when the battery goes in and jumps if the time is set. Reworded
 
 ### Review 7687 of `5f0bdf3`, `tools/puck-console/index.html`
 

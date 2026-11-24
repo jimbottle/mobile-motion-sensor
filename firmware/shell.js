@@ -32,7 +32,7 @@ function now() { return Math.round(getTime() * 1000); }
 /* The event log, for working out afterwards what the sensor did when nobody
  * was connected. A StorageFile named LOG, one line per event:
  *
- *   <ms since this start>,<letter>,<a>,<b>
+ *   <the Puck's clock in ms>,<letter>,<a>,<b>
  *
  *   B  started: battery percent, boot ID
  *   K  button released: ms held, mode afterwards
@@ -42,17 +42,20 @@ function now() { return Math.round(getTime() * 1000); }
  *   H  every ten minutes: battery percent, free variables, error flags if any
  *   X  an uncaught error: its text
  *
- * The clock restarts at every B line. Logging stops for good at LOG_MAX
- * bytes, keeping the oldest events, and any Storage error turns it off:
- * the log must never be what stops the sensor.
+ * The clock is getTime(): it starts from zero when the battery goes in, not
+ * at every B line, and it jumps if anything sets the Puck's time (the Web IDE
+ * does on connect). Ordinary events stop at LOG_MAX bytes, keeping the oldest;
+ * X lines may run LOG_X_RESERVE bytes past that, so an error is still
+ * recorded when the log is full. Any Storage error turns logging off: the
+ * log must never be what stops the sensor.
  * To clear it: require("Storage").open("mslog","w").erase()
  */
-var LOG = "mslog", LOG_MAX = 16000, logLen = 0, logOff = !CONFIG.log;
+var LOG = "mslog", LOG_MAX = 16000, LOG_X_RESERVE = 1000, logLen = 0, logOff = !CONFIG.log;
 
 function logEv(letter, a, b) {
   if (logOff) return;
   var line = now() + "," + letter + (a === undefined ? "" : "," + a) + (b === undefined ? "" : "," + b) + "\n";
-  if (logLen + line.length > LOG_MAX) { logOff = true; return; }
+  if (logLen + line.length > LOG_MAX + (letter === "X" ? LOG_X_RESERVE : 0)) return;
   try { require("Storage").open(LOG, "a").write(line); logLen += line.length; } catch (e) { logOff = true; }
 }
 
@@ -168,7 +171,9 @@ function start() {
   if (!logOff) logLen = logSize();
   logEv("B", s.battery, s.bootId);
   process.removeAllListeners("uncaughtException");
-  process.on("uncaughtException", function (e) { logEv("X", String(e)); });
+  // Catching an error here stops Espruino printing it, so print it as well:
+  // the console is the first place anyone looks at the bench.
+  process.on("uncaughtException", function (e) { print("Uncaught", e); logEv("X", String(e)); });
   // The button reads high while pressed, so a falling edge is the release
   // and e.lastTime is when it went down.
   setWatch(onButton, BTN, { repeat: true, edge: "falling", debounce: 25 });
