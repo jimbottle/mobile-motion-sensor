@@ -2,6 +2,16 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-24: trigger limit and a Puck event log, tested in Node, not yet on the Puck
+
+`mobile-motion-sensor-ckv`. Neither has been uploaded: the Puck still runs the build from the proof of concept.
+
+- **Owner's rule:** no more than 5 buzzes in 60 seconds, and a sensor that reaches that is disarmed. `firmware/core.js` now counts the 5th trigger inside 60 s, sends it in a disarm burst so the watch still buzzes for it and hears "switched off", and stays off until the button arms it. Written into `docs/protocol.md` as "Trigger limit". `node firmware/test-core.js`: 79 checks, 32 mutants (12 and 6 of them new)
+- The watch code is unchanged. It was read to confirm that a counter change arriving in a `DISARMING` packet buzzes and then marks the sensor off (`../my-bangle/apps/msense/src/boot.js`, `pkt`). Not observed on the watch
+- **Event log:** `firmware/shell.js` appends one line per event to a StorageFile `mslog` on the Puck: start, button, PIR edges and the level at power-on, mode changes, the limit firing, battery and free memory every ten minutes, and uncaught errors. It stops at 16000 bytes and turns itself off on any Storage error. `puck.readLog()` in `tools/puck-console/index.html` reads it back. It exists because two things went unexplained on the bench the same day and there was nothing to read. `node firmware/test-shell.js`: 32 checks, 24 mutants
+- The built file is now 16.9 kB. With the 16 kB log limit that is about 33 kB of the 40 kB of Storage the Puck reported free when empty. Memory with this build loaded is unmeasured
+- Three red flashes on the Puck mark the limit disarming it. The watch gives no separate signal; not asked of the owner yet
+
 ## 2026-11-24: proof of concept works. First results from real devices
 
 The first time anything in this repo ran on hardware. One Puck.js, one BS412 on four jumper wires pushed through the Puck's holes, no soldering, and the watch.

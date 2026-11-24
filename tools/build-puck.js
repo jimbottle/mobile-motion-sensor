@@ -25,7 +25,7 @@ var root = path.join(__dirname, "..");
 var button = process.argv.indexOf("--button-trigger") >= 0;
 
 function build(opts) {
-  var config = { core: { dev: true }, buttonTrigger: !!opts.buttonTrigger };
+  var config = { core: { dev: true }, buttonTrigger: !!opts.buttonTrigger, log: true };
   if (opts.buttonTrigger) config.core.settleMs = 2000;
   var coreSrc = fs.readFileSync(path.join(root, "firmware/core.js"), "utf8");
   var shellSrc = fs.readFileSync(path.join(root, "firmware/shell.js"), "utf8");

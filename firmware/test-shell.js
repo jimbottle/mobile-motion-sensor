@@ -18,7 +18,7 @@ function check(name, ok) {
 
 function boot(opts, mutate) {
   var w = { clock: 5000,   // ms, kept whole so a timer due exactly at the end of run() fires
-    timers: [], watches: {}, pins: {}, adv: [], sleeps: 0, wakes: 0, pulses: [], pirLevel: 0, intervals: 0 };
+    timers: [], watches: {}, pins: {}, adv: [], sleeps: 0, wakes: 0, pulses: [], pirLevel: 0, intervals: 0, log: "", logThrows: false, handlers: {}, every: null };
   function pin(name) {
     return { name: name,
       write: function (v) { w.pins[name] = v; },
@@ -34,15 +34,26 @@ function boot(opts, mutate) {
     clearWatch: function (id) { if (id === undefined) w.watches = {}; else delete w.watches[id]; },
     setTimeout: function (fn, ms) { var id = nextId++; w.timers.push({ id: id, at: w.clock + Math.round(ms), fn: fn }); return id; },
     clearTimeout: function (id) { w.timers = id === undefined ? [] : w.timers.filter(function (t) { return t.id !== id; }); },
-    setInterval: function () { w.intervals++; return 0; },
+    setInterval: function (fn) { w.intervals++; w.every = fn; return 0; },
     clearInterval: function () { w.intervals = 0; },
-    E: { hwRand: function () { return 0x1234BEEF; }, getBattery: function () { return 87; } },
+    E: { hwRand: function () { return 0x1234BEEF; }, getBattery: function () { return 87; }, getErrorFlags: function () { return []; } },
+    process: {
+      memory: function () { return { free: 2000 }; },
+      on: function (name, fn) { w.handlers[name] = fn; },
+      removeAllListeners: function (name) { delete w.handlers[name]; }
+    },
     NRF: {
       setAdvertising: function (d, o) { w.adv.push(o); },
       sleep: function () { w.sleeps++; }, wake: function () { w.wakes++; }
     },
     Modules: { cache: {}, addCached: function (id, fn) { g.Modules.cache[id] = fn; } },
     require: function (id) {
+      if (id === "Storage") return { open: function (name, mode) {
+        if (w.logThrows) throw new Error("storage full");
+        var at = 0;
+        return { write: function (t) { w.log += t; },
+                 read: function (n) { if (at >= w.log.length) return undefined; var p = w.log.substr(at, n); at += n; return p; } };
+      } };
       var exports = {};
       // The module function reads the free variable `exports`, as it does on Espruino.
       vm.runInContext("(function(exports){(" + g.Modules.cache[id].toString() + ")();})", ctx)(exports);
@@ -51,6 +62,7 @@ function boot(opts, mutate) {
     Math: Math, JSON: JSON
   };
   var ctx = vm.createContext(g);
+  if (opts && opts.before) opts.before(w);
   var src = build(opts || {});
   if (mutate) { var m = mutate(src); if (m === src) throw new Error("mutant changed nothing"); src = m; }
   vm.runInContext(src + "\nonInit();", ctx);
@@ -142,6 +154,32 @@ function scenarios(mutate) {
   // board; fire it too, as Espruino would.
   if (c.g.__stale) live({ time: c.clock / 1000, lastTime: c.clock / 1000 - 0.2, state: false });
   r["second onInit: one short press leaves it armed"] = (c.last().manufacturerData[5] & 1) === 1;
+
+  // ---- the event log -------------------------------------------------
+  var lines = function (x) { return x.log.split("\n").filter(Boolean).map(function (l) { return l.split(",").slice(1).join(","); }); };
+  var d = boot({}, mutate);
+  r["log: a start is logged with battery and boot ID"] = lines(d)[0] === "B,87," + 0xBEEF;
+  d.run(2000); d.press(200);
+  r["log: a button press and the mode change are logged"] = lines(d).slice(1).join(" ") === "K,200,1 M,0,1 P,0,on";
+  d.run(31000); d.pir(1); d.pir(0);
+  r["log: PIR edges are logged with the counter"] = lines(d).slice(-2).join(" ") === "P,1,1 P,0,1";
+  for (var k = 0; k < 4; k++) { d.run(5000); d.pir(1); d.pir(0); }
+  r["log: the limit disarming the sensor is logged, with three red flashes"] =
+    lines(d).indexOf("L,5") >= 0 && lines(d).indexOf("M,2,3") >= 0 && d.pulses.slice(-2).join() === "LED1,LED3";
+  d.every();
+  r["log: the ten-minute line has battery and free memory"] = lines(d).slice(-1)[0] === "H,87,2000";
+  d.handlers.uncaughtException("boom");
+  r["log: an uncaught error is logged"] = lines(d).slice(-1)[0] === "X,boom";
+
+  var full = boot({ before: function (x) { x.log = new Array(16000 - 5).join("x") + "\n"; } }, mutate);
+  var size = full.log.length;
+  full.run(2000); full.press(200);
+  r["log: nothing is written past the size limit, counting what was there at start"] = full.log.length === size;
+  r["log: a full log does not stop the sensor"] = (full.last().manufacturerData[5] & 1) === 1;
+
+  var broken = boot({ before: function (x) { x.logThrows = true; } }, mutate);
+  broken.run(2000); broken.press(200);
+  r["log: a Storage error does not stop the sensor"] = (broken.last().manufacturerData[5] & 1) === 1;
   return r;
 }
 
@@ -162,11 +200,18 @@ var mutants = [
   ["wake timer never set", function (s) { return s.replace("if (w !== null) wakeTimer", "if (false) wakeTimer"); }],
   ["button held time in seconds, not ms", function (s) { return s.replace("(e.time - e.lastTime) * 1000", "(e.time - e.lastTime)"); }],
   ["boot ID not from the hardware", function (s) { return s.replace("E.hwRand() & 0xFFFF", "0"); }],
-  ["battery not read at boot", function (s) { return s.replace("battery: E.getBattery() });\n  //", "});\n  //"); }],
+  ["battery not read at boot", function (s) { return s.replace("battery: E.getBattery() });\n  logOff", "});\n  logOff"); }],
   ["button build disarms on a short press", function (s) { return s.replace("CONFIG.buttonTrigger && s.mode", "false && s.mode"); }],
   ["no dev LED pattern at boot", function (s) { return s.replace("if (s.cfg.dev) { digitalPulse(LED1", "if (false) { digitalPulse(LED1"); }],
   ["start() does not clear earlier watches and timers", function (s) { return s.replace("clearWatch();\n  clearInterval();", "__stale = true;"); }],
   ["start() keeps the old state", function (s) { return s.replace("s = core.create(CONFIG.core);\n  wakeTimer", "wakeTimer"); }],
+  ["log has no size limit", function (s) { return s.replace("if (logLen + line.length > LOG_MAX) { logOff = true; return; }", ""); }],
+  ["log size not read at start", function (s) { return s.replace("if (!logOff) logLen = logSize();", ""); }],
+  ["a Storage error escapes the log", function (s) { return s.replace("try { require(\"Storage\").open(LOG, \"a\").write(line); logLen += line.length; } catch (e) { logOff = true; }", "require(\"Storage\").open(LOG, \"a\").write(line); logLen += line.length;").replace("  } catch (e) { logOff = true; }\n  return n;", "  } finally {}\n  return n;"); }],
+  ["PIR edges not logged", function (s) { return s.replace("if (ev.t === \"pir\") logEv(\"P\", ev.level ? 1 : 0, s.counter);", ""); }],
+  ["mode changes not logged", function (s) { return s.replace("if (s.mode !== mode) logEv(\"M\", mode, s.mode);", ""); }],
+  ["uncaught errors not logged", function (s) { return s.replace("process.on(\"uncaughtException\", function (e) { logEv(\"X\", String(e)); });", ""); }],
+  ["limit has no LED pattern", function (s) { return s.replace("else if (fx === \"led:limit\")", "else if (false)"); }],
   ["no blink on a counted trigger", function (s) { return s.replace("if (s.cfg.dev && s.counter !== before)", "if (false)"); }]
 ];
 var caught = 0;

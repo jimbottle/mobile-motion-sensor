@@ -50,7 +50,7 @@ function suite(C) {
 
   // ---- payload layout -------------------------------------------------
   {
-    const { s, t } = armed();
+    const { s, t } = armed({ maxTriggers: 0 });
     for (let i = 0; i < 258; i++) { pir(s, t + i * 1000, true); pir(s, t + i * 1000 + 100, false); }
     const last = t + 257 * 1000;
     check("payload: matches the protocol.md test vector",
@@ -268,6 +268,53 @@ function suite(C) {
     check("disarm: then off, radio asleep, nothing pending",
       s.mode === C.OFF && C.view(s, t + 500 + s.cfg.disarmMs).adv === null && C.nextWake(s, t + 500 + s.cfg.disarmMs) === null);
   }
+  // ---- the owner's limit: 5 triggers in 60 s, then it disarms itself ----
+  {
+    const trig = (s, at) => { const fx = pir(s, at, true); pir(s, at + 100, false); return fx; };
+    {
+      // A short settle time, so the re-arm below happens while the first
+      // five triggers are still inside the window.
+      const { s, t } = armed({ settleMs: 1000 });
+      let fx = [];
+      for (let i = 0; i < 4; i++) fx = fx.concat(trig(s, t + 1000 + i * 5000));
+      check("limit: four triggers in a minute leave it armed", s.mode === C.ARMED && s.counter === 4 && fx.length === 0);
+      const at = t + 1000 + 4 * 5000;
+      fx = trig(s, at);
+      check("limit: the fifth trigger in a minute is still counted", s.counter === 5);
+      check("limit: the fifth trigger disarms the sensor", s.mode === C.DISARMING && eq(fx, ["led:limit"]));
+      const p = C.view(s, at + 1).adv.payload;
+      check("limit: the disarm burst carries the fifth count and DISARMING, not ARMED",
+        p[6] === 5 && (p[5] & C.F_DISARMING) !== 0 && (p[5] & C.F_ARMED) === 0);
+      check("limit: PIR power is cut at once", C.view(s, at + 1).pirPower === false);
+      tick(s, at + s.cfg.disarmMs);
+      check("limit: then it is off", s.mode === C.OFF);
+      trig(s, at + 10000);
+      check("limit: a disarmed sensor counts nothing more", s.counter === 5);
+      press(s, at + 20000);
+      const t2 = at + 20000 + s.cfg.settleMs;
+      tick(s, t2);
+      trig(s, t2 + 1000);
+      check("limit: arming again starts a fresh count", s.mode === C.ARMED && s.counter === 6);
+    }
+    {
+      const { s, t } = armed();
+      for (let i = 0; i < 12; i++) trig(s, t + 1000 + i * 15000);   // four a minute, for three minutes
+      check("limit: triggers older than the window are forgotten", s.mode === C.ARMED && s.counter === 12);
+    }
+    {
+      const { s, t } = armed();
+      for (let i = 0; i < 4; i++) trig(s, t + 1000 + i * 1000);
+      trig(s, t + 1000 + 60000);       // exactly a window after the first: that one no longer counts
+      check("limit: a trigger exactly one window old no longer counts", s.mode === C.ARMED);
+      trig(s, t + 1000 + 60500);       // second to sixth are inside one window
+      check("limit: the window slides", s.mode === C.DISARMING);
+    }
+    {
+      const { s, t } = armed({ maxTriggers: 0 });
+      for (let i = 0; i < 20; i++) trig(s, t + 1000 + i * 1000);
+      check("limit: maxTriggers 0 turns it off", s.mode === C.ARMED && s.counter === 20);
+    }
+  }
   {
     const s = booted();
     check("idle: an off sensor asks for no wake-up", C.nextWake(s, 4000) === null);
@@ -302,6 +349,12 @@ const MUTANTS = [
   ["heartbeat does not start on arming", "  s.nextBeat = now;        // so", "  s.nextBeat = now + s.cfg.beatPeriod;        // so", "heartbeat: starts the moment the sensor is armed"],
   ["late tick bunches beats up", "    s.nextBeat = now + c.beatPeriod;", "    s.nextBeat = s.nextBeat + c.beatPeriod;", "heartbeat: a late tick does not bunch the next beat up"],
   ["trigger starts no burst", "      if (now + c.burstMs > s.advUntil) s.advUntil = now + c.burstMs;\n", "", "burst: a trigger starts one at the burst interval"],
+  ["limit never applied", "if (c.maxTriggers && s.recent.length >= c.maxTriggers) { disarm(s, now); fx.push(\"led:limit\"); }", "", "limit: the fifth trigger disarms the sensor"],
+  ["limit reached one trigger late", "s.recent.length >= c.maxTriggers", "s.recent.length > c.maxTriggers", "limit: the fifth trigger disarms the sensor"],
+  ["limit drops the trigger that reaches it", "      s.recent.push(now);\n", "      s.recent.push(now); if (c.maxTriggers && s.recent.length >= c.maxTriggers) s.counter--;\n", "limit: the fifth trigger in a minute is still counted"],
+  ["old triggers never leave the window", "      while (now - s.recent[0] >= c.triggerWindowMs) s.recent.shift();\n", "", "limit: triggers older than the window are forgotten"],
+  ["window is one trigger too long", "while (now - s.recent[0] >= c.triggerWindowMs)", "while (now - s.recent[0] > c.triggerWindowMs)", "limit: a trigger exactly one window old no longer counts"],
+  ["arming keeps the old count", "  s.recent = [];           // the limit", "  // the limit", "limit: arming again starts a fresh count"],
   ["age byte never refreshed", "if (s.lastTriggerAt !== null && now - s.lastTriggerAt < 25500) t.push(now + c.ageRefreshMs);", "", "burst: the age byte is refreshed during it"],
 ];
 

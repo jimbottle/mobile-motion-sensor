@@ -40,6 +40,8 @@ var DEFAULTS = {
   longPressMs: 2000,     // this long or longer opens or closes the maintenance window
   bootGuardMs: 1000,     // a press that began this soon after boot is ignored
   minGapMs: 500,         // two rising edges closer than this count once
+  maxTriggers: 5,        // this many triggers inside triggerWindowMs and the sensor disarms itself. 0 = no limit
+  triggerWindowMs: 60000,
   lowBattPct: 20
 };
 
@@ -56,6 +58,7 @@ function create(overrides) {
     bootId: 0,
     counter: 0,
     lastTriggerAt: null,
+    recent: [],         // times of the triggers still inside the limit's window
     pirHigh: false,
     battery: 255,       // 255 = unknown
     advUntil: 0,        // a burst is on the air until this time
@@ -80,6 +83,7 @@ function arm(s, now) {
   s.mode = SETTLING;
   s.settleUntil = now + s.cfg.settleMs;
   s.pirHigh = false;       // the shell reports the real level once the sensor has power
+  s.recent = [];           // the limit counts from each arming, not across them
   s.nextBeat = now;        // so the watch hears "armed" straight away
   advance(s, now);
 }
@@ -90,7 +94,8 @@ function disarm(s, now) {
 }
 
 /* Feed one event in. Returns the one-shot effects the shell should play, as
- * a list of names: "led:arm", "led:disarm", "led:maint-open", "led:maint-close".
+ * a list of names: "led:arm", "led:disarm", "led:limit", "led:maint-open",
+ * "led:maint-close".
  *
  *   {t:"boot",    now, bootId, battery}   once, first. bootId is a random 16-bit number
  *   {t:"button",  now, heldMs}            on release, with how long it was down
@@ -137,6 +142,13 @@ function step(s, ev) {
       s.counter = (s.counter + 1) & 0xFFFF;
       s.lastTriggerAt = now;
       if (now + c.burstMs > s.advUntil) s.advUntil = now + c.burstMs;
+      // The owner's limit: no more than maxTriggers alerts in any
+      // triggerWindowMs. The trigger that reaches the limit still counts and
+      // still goes out, in the disarm burst, so the watch buzzes for it and
+      // then hears "switched off". After that only the button arms it again.
+      s.recent.push(now);
+      while (now - s.recent[0] >= c.triggerWindowMs) s.recent.shift();
+      if (c.maxTriggers && s.recent.length >= c.maxTriggers) { disarm(s, now); fx.push("led:limit"); }
     }
     return fx;
   }

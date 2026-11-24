@@ -139,6 +139,21 @@ puck.persist = function (name) {
   return puck.ask('\x10print("B",require("Storage").write(".bootcde",' + JSON.stringify(boot) + '),"END")\n', "END", 5000);
 };
 
+/* Read the sensor's event log (firmware/shell.js, logEv) and return it as
+ * text. The log is a StorageFile, so it is read through a file handle kept
+ * in a global on the Puck, 256 characters at a time, in base64. */
+puck.readLog = async function () {
+  await puck.ask('\x03\x10global.__f=require("Storage").open("mslog","r");print("OPEN")\n', "OPEN", 4000);
+  var text = "";
+  for (;;) {
+    var r = await puck.ask('\x10var __l=__f.read(256);print("R"+(__l===undefined?"":btoa(__l))+"Z")\n', "Z\r\n", 6000);
+    var m = /R([A-Za-z0-9+\/=]*)Z/.exec(r);
+    if (!m) throw new Error("log read failed: " + r.slice(-200));
+    if (!m[1]) return text;
+    text += atob(m[1]);
+  }
+};
+
 puck.disconnect = function () { if (puck.device && puck.device.gatt.connected) puck.device.gatt.disconnect(); };
 
 document.getElementById("connect").addEventListener("click", puck.connect);
