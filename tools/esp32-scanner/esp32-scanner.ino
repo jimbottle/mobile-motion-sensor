@@ -27,7 +27,8 @@
  *
  *   m            only packets whose data starts with the protocol's magic 0x4D
  *   e            every packet on company ID 0x0590 (default)
- *   c            print how many packets were seen and printed since the last c
+ *   c            print  C,<seen>,<printed>,<free heap bytes>  and zero the two
+ *                counts. The free heap must stay flat over a long run
  */
 #include <BLEDevice.h>
 #include <BLEScan.h>
@@ -40,6 +41,11 @@ class Listener : public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice dev) override {
     uint32_t at = micros();
     seen++;
+    // The library keeps an entry per address and, with duplicates on, appends
+    // every packet's bytes to it, so memory would grow for as long as the scan
+    // runs. `dev` is a deep copy, so the library's entry can go now. Nothing
+    // in core 3.3.12's handleGAPEvent reads it after this callback returns.
+    BLEDevice::getScan()->erase(dev.getAddress());
     if (!dev.haveManufacturerData()) return;
     String m = dev.getManufacturerData();
     if (m.length() < 2 || (uint8_t)m[0] != 0x90 || (uint8_t)m[1] != 0x05) return;
@@ -73,7 +79,7 @@ void loop() {
     if (line == "m") { magicOnly = true; Serial.println("magic 0x4D only"); }
     else if (line == "e") { magicOnly = false; Serial.println("every 0x0590 packet"); }
     else if (line == "c") {
-      Serial.printf("C,%lu,%lu\n", (unsigned long)seen, (unsigned long)printed);
+      Serial.printf("C,%lu,%lu,%lu\n", (unsigned long)seen, (unsigned long)printed, (unsigned long)ESP.getFreeHeap());
       seen = 0; printed = 0;
     } else if (line.length()) Serial.println("? m e c");
     line = "";
