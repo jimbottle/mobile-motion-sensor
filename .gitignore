@@ -8,3 +8,4 @@
 
 # Built Puck files (tools/build-puck.js)
 /build/
+/tools/puck-console/*.tmp.js

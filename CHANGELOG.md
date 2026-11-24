@@ -2,6 +2,38 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-24: proof of concept works. First results from real devices
+
+The first time anything in this repo ran on hardware. One Puck.js, one BS412 on four jumper wires pushed through the Puck's holes, no soldering, and the watch.
+
+**Measured, 2026-11-24**
+
+- **The Puck's button buzzes the watch.** Button-trigger build on the Puck, `msense` 0.01 on the watch at its default scan (40 ms window, 1000 ms interval). The owner pressed 8 times (the Puck's counter read 8 afterwards) and felt a buzz each time, "within a second to second and a half", by feel, not timed
+- **A BS412 on jumper wires buzzes the watch.** After 40 s covered by a mug the watch's record showed counter 0; after the mug came off and the owner waved, it showed counter 3 and he felt buzzes. His words: it "kind of worked", "a little inconsistent", "did trigger correctly a few times". How many waves did not trigger was not counted
+- **The BS412's leg numbering as read from the datasheet is right**: legs toward you, rim tab at upper right, top is 1, right 2, bottom 3, left 4; with 1 and 2 to GND, 3 to D2 and 4 to D1 it triggered. That also confirms the brief's wiring table for this sensor
+- The Puck is `Puck.js f538`, firmware **2v27**, 2630 variables in total. With the development build running, 2129 to 2159 were free, so the 13.5 kB file with its comments fits
+- `NRF.setAdvertising` accepted `interval: 20` with `connectable: true` and manufacturer data on `0x0590` without an error, and the watch heard it. The interval actually transmitted was not measured, and the non-connectable case is still untested (`mobile-motion-sensor-3ph`)
+- With the sensor powered from D2 and the owner sitting in front of it, D1 read high continuously for the 50 s it was watched. Whether that was warm-up or continuous re-triggering was not separated
+- Watch: `msense.boot.js` 7114 B, CRC32 `01194fd0`, and `msense.info` 195 B, CRC32 `d5159551`, both read back identical. The listener was started with `eval` of the stored file in the Settings app's context, not by `load()`, so that the "Stay Connectable?" prompt stayed up. The watch's battery read 10% throughout
+
+**How it was done**
+
+- **`tools/puck-console/index.html`**, new: a one-button Web Bluetooth page served from localhost. The owner clicks Connect and picks the Puck; the rest is driven from the page's JavaScript. The built file goes to the Puck's Storage as `poc.js` in 192-byte pieces, each acknowledged, and is read back byte for byte before it is run with `eval`. This is the dev loop `mobile-motion-sensor-3ph` asked for, less the interval measurement
+- A two-line `.bootcde` on the Puck now evals `poc.js` at every start, so a power glitch does not lose the program. Whether it runs after a reset was not observed
+
+**Did not work, or got in the way**
+
+- **Chrome will not reconnect to the Puck without a new chooser click.** After a disconnect, `device.gatt.connect()` on the kept device object failed four times with "Bluetooth Device is no longer in range". Every reconnect cost the owner a click
+- **Leaning jumper pins drop the Puck's power when the board is moved.** The console connection was lost twice during wiring and covering, and one of those was a reboot (uptime read 91 s afterwards, the program gone from RAM). Watching the sensor over the console during the test was abandoned for that reason; the Puck's blue blink and the watch's own record were used instead
+- **My first console command to arm the sensor was ignored**, correctly: it came within a second of `onInit()`, inside the core's boot guard
+- **I told the owner to put a mug over the sensor and then to press the button and watch the LEDs.** The jumpers are 3 in long; the Puck was under the mug too
+- No snapshot of the watch was taken before or after, against `../my-bangle`'s rule. The change there is two new files
+
+**Not known after today**
+
+- Why some waves did not trigger: the sensor's 2.3 s lock time after each 2 s output, the 30 s settle guess, the loose contacts and the watch's scan pattern are all candidates and none was isolated
+- Anything about range, false triggers, battery cost on either device, or behaviour across app switches on the watch
+
 ## 2026-11-24: scope cut to a proof of concept; Puck hardware shell written, never run
 
 - **Owner, in session:** the full bench plan is far too much for a first proof. The first goal is one Puck, one PIR on jumper wires and the watch buzzing on a walk-past. No soldering: jumper pins pushed through the Puck's holes. The brief's bench steps (3V reading, recovery paths, pigtails, range, current, case) are later work and happen when he asks for them

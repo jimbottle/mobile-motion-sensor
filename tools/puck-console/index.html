@@ -1,0 +1,77 @@
+<!doctype html>
+<!-- A one-button page for talking to a Puck.js console over Web Bluetooth.
+
+     The person clicks Connect and picks the Puck in Chrome's chooser, which is
+     the one step that must be a human click. Everything after that is driven
+     from the page's JavaScript: puck.send(text) writes to the console,
+     puck.rx holds everything the Puck has said.
+
+     Serve it from this Mac, since Web Bluetooth needs a secure context and
+     localhost counts as one. From the repo root:
+
+       python3 -m http.server 8765 --bind 127.0.0.1 --directory tools/puck-console
+
+     then open http://localhost:8765/ -->
+<meta charset="utf-8">
+<title>Puck console</title>
+<style>
+  body { font: 16px system-ui, sans-serif; margin: 2rem; max-width: 50rem; }
+  button { font-size: 1.5rem; padding: 0.8rem 2rem; }
+  pre { background: #111; color: #ddd; padding: 1rem; min-height: 10rem; max-height: 24rem; overflow: auto; white-space: pre-wrap; }
+</style>
+<h1>Puck console</h1>
+<p><button id="connect">Connect</button> <span id="state">not connected</span></p>
+<pre id="log"></pre>
+<script>
+var NUS = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+var NUS_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";   // we write here
+var NUS_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";   // the Puck notifies here
+var puck = { rx: "", device: null, tx: null, connected: false, busy: false, error: "" };
+
+function show() {
+  document.getElementById("state").textContent =
+    (puck.connected ? "connected to " + puck.device.name : "not connected") + (puck.error ? "  (" + puck.error + ")" : "");
+  var log = document.getElementById("log");
+  log.textContent = puck.rx.slice(-4000);
+  log.scrollTop = log.scrollHeight;
+}
+
+puck.connect = async function () {
+  puck.error = "";
+  try {
+    puck.device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "Puck.js" }, { namePrefix: "Bangle.js" }, { services: [NUS] }],
+      optionalServices: [NUS]
+    });
+    puck.device.addEventListener("gattserverdisconnected", function () { puck.connected = false; show(); });
+    var server = await puck.device.gatt.connect();
+    var service = await server.getPrimaryService(NUS);
+    puck.tx = await service.getCharacteristic(NUS_TX);
+    var rx = await service.getCharacteristic(NUS_RX);
+    rx.addEventListener("characteristicvaluechanged", function (e) {
+      puck.rx += new TextDecoder("latin1").decode(e.target.value);
+      show();
+    });
+    await rx.startNotifications();
+    puck.connected = true;
+  } catch (e) { puck.error = String(e); }
+  show();
+};
+
+/* Write text to the console, 20 bytes at a time. Resolves when it has all gone. */
+puck.send = async function (text) {
+  if (!puck.connected) throw new Error("not connected");
+  if (puck.busy) throw new Error("a send is already running");
+  puck.busy = true;
+  try {
+    var bytes = new Uint8Array(text.length);
+    for (var i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 255;
+    for (var at = 0; at < bytes.length; at += 20)
+      await puck.tx.writeValueWithoutResponse(bytes.slice(at, at + 20));
+  } finally { puck.busy = false; }
+};
+
+puck.disconnect = function () { if (puck.device && puck.device.gatt.connected) puck.device.gatt.disconnect(); };
+
+document.getElementById("connect").addEventListener("click", puck.connect);
+</script>
