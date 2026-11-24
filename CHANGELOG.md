@@ -9,6 +9,8 @@ What was done, what worked and what did not. Failed approaches stay in. Newest f
   - `radioOn` was set to true even when `adv->start()` failed, so status reported a burst that was not on the air. It now follows the result of `start()`, and a failed start is retried after 1 s
   - the boot ID was drawn from `esp_random()` before `BLEDevice::init`, when the radio is off and the numbers are not truly random. It is drawn after
 - It compiles (622101 bytes, 47%) with the same command and core as on 2026-11-16. **It has still not run on a board**, and the failed-start path cannot be exercised until one is plugged in
+- **`tools/esp32-scanner/esp32-scanner.ino`**, new, for `mobile-motion-sensor-3ph`: the same ESP32-C3 board flashed as a continuous passive scanner that prints one timestamped line per packet on company ID `0x0590`. It is how the Puck's real advertising interval gets measured, since the Puck may accept an interval and transmit at another. It compiles (619967 bytes, 47%); **it has not run on a board**. In core 3.3.12's NimBLE build a scan duration of 0 means forever (`BLEScan.cpp`, read 2026-11-24)
+- **Handed to the owner:** bench session 1 (`mobile-motion-sensor-maf`), one runbook covering the Puck's first power-up and 3V reading, the dev loop (`mobile-motion-sensor-3ph`), both recovery paths (`mobile-motion-sensor-9n7`) and soldering the four pigtails (`mobile-motion-sensor-w9w`). The PIR and capacitors are left for the session after, once the BS412 pin drawing has been read
 
 ## 2026-11-16: ESP32-C3 stand-in transmitter written; compiles, never run
 
