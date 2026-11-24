@@ -8,11 +8,16 @@ A finding goes here when it was **valid**: it described a real defect, and fixin
 
 Check these before committing.
 
+- **"Read back identical" proves the copy, not the source.** A byte-for-byte read-back passes for the wrong file as readily as for the right one. Validate what is about to be sent before the destructive step. Review 7687 #1
 - **A procedure that worked, left in the session that ran it.** If a record says a tool did something, the code that did it has to be in the tool. Before committing a result, check that every step that produced it can be repeated from the repo. Review 7685 #1
 - **A stand-in that models less than the platform does.** The Node stand-ins for Espruino had no `save()`, so a bug that only exists across `save()` passed. When a test double leaves out a platform behaviour the instructions rely on, say so next to the instructions or model it. Review 7683 #1
 - **A library call used from its header, without reading what it keeps.** A signature says what a call takes, not what it stores between calls. Before a loop or callback runs for an unbounded time, read the library's handler for anything that accumulates. Review 7681 #1
 
 ## 2026-11-24
+
+### Review 7687 of `5f0bdf3`, `tools/puck-console/index.html`
+
+- **Medium. Valid.** `puck.upload` did not check the HTTP status of the file it fetched. A wrong path would have erased the program on the Puck and stored the server's 404 page in its place, reporting success because the read-back matched. **Fixed:** the fetch is checked, and the body must be non-empty ASCII, before the erase is sent. Syntax-checked in Node; not run against a Puck
 
 ### Review 7685 of `37a8940`, `tools/puck-console/index.html`
 

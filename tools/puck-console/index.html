@@ -101,7 +101,12 @@ puck.ask = async function (cmd, until, ms) {
  * index.html as something.tmp.js (ignored by git) and pass "/something.tmp.js".
  * Returns {ok, sent, back}; ok is true only if the read-back is identical. */
 puck.upload = async function (url, name) {
-  var src = await (await fetch(url, { cache: "no-store" })).text();
+  // Check what was fetched before anything on the Puck is erased: a wrong
+  // path gets the server's 404 page, which would otherwise replace the program.
+  var res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return { ok: false, fetchStatus: res.status };
+  var src = await res.text();
+  if (!src.length || /[^\x00-\x7F]/.test(src)) return { ok: false, reason: "empty or not ASCII" };
   var q = JSON.stringify(name), CH = 192;
   await puck.ask('\x03\x10require("Storage").erase(' + q + ');print("ERASED")\n', "ERASED", 4000);
   for (var off = 0; off < src.length; off += CH) {
