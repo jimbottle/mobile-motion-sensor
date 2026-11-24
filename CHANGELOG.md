@@ -16,6 +16,8 @@ The first time anything in this repo ran on hardware. One Puck.js, one BS412 on 
 - With the sensor powered from D2 and the owner sitting in front of it, D1 read high continuously for the 50 s it was watched. Whether that was warm-up or continuous re-triggering was not separated
 - Watch: `msense.boot.js` 7114 B, CRC32 `01194fd0`, and `msense.info` 195 B, CRC32 `d5159551`, both read back identical. The listener was started with `eval` of the stored file in the Settings app's context, not by `load()`, so that the "Stay Connectable?" prompt stayed up. The watch's battery read 10% throughout
 
+- **Room test, same day, console disconnected and the watch back on the phone:** armed, the sensor did not react to the owner walking in front of it. It first triggered when he picked the rig up, and after that "it did trigger correctly", buzzing the watch on movement. So the listener did restart by itself after the watch left the Settings screen. Why it was deaf at first is not known. Two candidates, not separated: a leaning jumper that was not making contact until the rig was handled (a power or ground wire reconnecting would also produce the first rising edge); or the sensor's output sitting high from power-on, which the firmware does not count until it has dropped and risen again
+
 **How it was done**
 
 - **`tools/puck-console/index.html`**, new: a one-button Web Bluetooth page served from localhost. The owner clicks Connect and picks the Puck; the rest is driven from the page's JavaScript. The built file goes to the Puck's Storage as `poc.js` in 192-byte pieces, each acknowledged, and is read back byte for byte before it is run with `eval`. This is the dev loop `mobile-motion-sensor-3ph` asked for, less the interval measurement
