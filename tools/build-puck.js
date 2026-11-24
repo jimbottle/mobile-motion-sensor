@@ -10,7 +10,12 @@
  *
  * Writes build/puck-dev.js or build/puck-dev-button.js (build/ is not
  * tracked). The file defines onInit(); after sending it, call onInit() to run
- * it from RAM, or save() to keep it across resets.
+ * it from RAM, or save() to keep it across resets. onInit() may be called
+ * before save(): it clears its own watches and timers each time it runs.
+ *
+ * Do not let the Espruino Web IDE set the Puck's clock while this runs (its
+ * "Set Current Time" setting). The firmware's deadlines assume a clock that
+ * does not jump.
  *
  * There is no field build here yet: it waits for the recovery paths to be
  * run on a board (docs/runbooks/puck-recovery.md).

@@ -18,7 +18,7 @@ function check(name, ok) {
 
 function boot(opts, mutate) {
   var w = { clock: 5000,   // ms, kept whole so a timer due exactly at the end of run() fires
-    timers: [], watches: {}, pins: {}, adv: [], sleeps: 0, wakes: 0, pulses: [], pirLevel: 0 };
+    timers: [], watches: {}, pins: {}, adv: [], sleeps: 0, wakes: 0, pulses: [], pirLevel: 0, intervals: 0 };
   function pin(name) {
     return { name: name,
       write: function (v) { w.pins[name] = v; },
@@ -31,10 +31,11 @@ function boot(opts, mutate) {
     digitalPulse: function (p) { w.pulses.push(p.name); },
     pinMode: function (p, m) { w.pins[p.name + ".mode"] = m; },
     setWatch: function (fn, p) { w.watches[p.name] = fn; return p.name; },
-    clearWatch: function (id) { delete w.watches[id]; },
+    clearWatch: function (id) { if (id === undefined) w.watches = {}; else delete w.watches[id]; },
     setTimeout: function (fn, ms) { var id = nextId++; w.timers.push({ id: id, at: w.clock + Math.round(ms), fn: fn }); return id; },
-    clearTimeout: function (id) { w.timers = w.timers.filter(function (t) { return t.id !== id; }); },
-    setInterval: function () { return 0; },
+    clearTimeout: function (id) { w.timers = id === undefined ? [] : w.timers.filter(function (t) { return t.id !== id; }); },
+    setInterval: function () { w.intervals++; return 0; },
+    clearInterval: function () { w.intervals = 0; },
     E: { hwRand: function () { return 0x1234BEEF; }, getBattery: function () { return 87; } },
     NRF: {
       setAdvertising: function (d, o) { w.adv.push(o); },
@@ -127,6 +128,20 @@ function scenarios(mutate) {
     b.last().manufacturerData[6] === 1 && (b.last().manufacturerData[5] & 1) === 1 && b.pins.D2 === 1;
   b.run(1000); b.press(200);
   r["button build: a second press is a second trigger"] = b.last().manufacturerData[6] === 2;
+
+  // save() after onInit() makes Espruino run onInit() a second time on the
+  // live state. Model that: arm, trigger, then run onInit() again.
+  var c = boot({}, mutate);
+  c.run(2000); c.press(200); c.run(31000); c.pir(1); c.pir(0);
+  var live = c.watches.BTN;
+  c.g.onInit();
+  r["second onInit: starts fresh, counter 0, not armed, PIR off, one battery interval"] =
+    c.last().manufacturerData[6] === 0 && (c.last().manufacturerData[5] & 1) === 0 && c.pins.D2 === 0 && !c.watches.D1 && c.intervals === 1;
+  c.run(2000); c.press(200);
+  // A watch left over from the first run would still be callable on a real
+  // board; fire it too, as Espruino would.
+  if (c.g.__stale) live({ time: c.clock / 1000, lastTime: c.clock / 1000 - 0.2, state: false });
+  r["second onInit: one short press leaves it armed"] = (c.last().manufacturerData[5] & 1) === 1;
   return r;
 }
 
@@ -150,6 +165,8 @@ var mutants = [
   ["battery not read at boot", function (s) { return s.replace("battery: E.getBattery() });\n  //", "});\n  //"); }],
   ["button build disarms on a short press", function (s) { return s.replace("CONFIG.buttonTrigger && s.mode", "false && s.mode"); }],
   ["no dev LED pattern at boot", function (s) { return s.replace("if (s.cfg.dev) { digitalPulse(LED1", "if (false) { digitalPulse(LED1"); }],
+  ["start() does not clear earlier watches and timers", function (s) { return s.replace("clearWatch();\n  clearInterval();", "__stale = true;"); }],
+  ["start() keeps the old state", function (s) { return s.replace("s = core.create(CONFIG.core);\n  wakeTimer", "wakeTimer"); }],
   ["no blink on a counted trigger", function (s) { return s.replace("if (s.cfg.dev && s.counter !== before)", "if (false)"); }]
 ];
 var caught = 0;

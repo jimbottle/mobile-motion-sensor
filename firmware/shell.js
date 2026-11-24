@@ -102,7 +102,18 @@ function onButton(e) {
   event({ t: "button", heldMs: heldMs });
 }
 
+/* Safe to run more than once. Espruino's save() keeps live watches and
+ * timers and runs onInit() again at every boot, so if this had already run
+ * before a save() there would be two button watches, and one press would arm
+ * and then disarm. Every watch and timer on the board belongs to this file,
+ * so start by clearing them all and going back to a fresh state. */
 function start() {
+  clearWatch();
+  clearInterval();
+  clearTimeout();
+  if (!radioAwake) NRF.wake();
+  s = core.create(CONFIG.core);
+  wakeTimer = undefined; pirOn = false; radioAwake = true; lastAdv = "";
   PIR_POWER.write(0);
   core.step(s, { t: "boot", now: now(), bootId: E.hwRand() & 0xFFFF, battery: E.getBattery() });
   // The button reads high while pressed, so a falling edge is the release
