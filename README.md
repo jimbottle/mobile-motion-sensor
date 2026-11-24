@@ -2,7 +2,7 @@
 
 A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someone walks into its view. A Puck.js v2 reads a passive infrared sensor and broadcasts over Bluetooth; the watch listens and buzzes. No phone, no hub.
 
-**State on 2026-11-24: parts in hand, bench work starting.** Nothing has been measured. The sensor's logic and the watch's listener exist and pass their tests in Node; neither has run on a device.
+**State on 2026-11-24: parts in hand, first goal is a jumper-wire proof of concept.** Nothing has been measured. The sensor's logic and the watch's listener exist and pass their tests in Node; neither has run on a device.
 
 ## What is here
 
@@ -13,6 +13,9 @@ A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someo
 | `docs/runbooks/puck-recovery.md` | Getting back into a Puck.js that cannot be reached over Bluetooth |
 | `firmware/core.js` | The sensor's logic with no hardware in it: armed state, counter, button, advertising schedule, packet bytes. Runs in Node and is meant to run on the Puck |
 | `firmware/test-core.js` | Its tests: `node firmware/test-core.js` |
+| `firmware/shell.js` | The Puck's pins, timers, LEDs and radio around the core. Never run on a Puck |
+| `firmware/test-shell.js` | Runs the built file against stand-ins for Espruino's globals: `node firmware/test-shell.js` |
+| `tools/build-puck.js` | Joins core and shell into one file to send to the Puck: `node tools/build-puck.js` |
 | `tools/esp32-advertiser/` | An ESP32-C3 sketch that stands in for the sensor's radio in watch-side latency trials. The build command is at the top of the file |
 | `tools/esp32-scanner/` | The same board flashed as a continuous scanner, for measuring the interval a transmitter really advertises at |
 | `CHANGELOG.md` | What was done, what worked and what did not |

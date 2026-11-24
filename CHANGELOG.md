@@ -2,6 +2,14 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-24: scope cut to a proof of concept; Puck hardware shell written, never run
+
+- **Owner, in session:** the full bench plan is far too much for a first proof. The first goal is one Puck, one PIR on jumper wires and the watch buzzing on a walk-past. No soldering: jumper pins pushed through the Puck's holes. The brief's bench steps (3V reading, recovery paths, pigtails, range, current, case) are later work and happen when he asks for them
+- **`firmware/shell.js`**, new (`mobile-motion-sensor-3mg`): the pins, timers, LEDs and radio calls around `firmware/core.js`. D2 powers the PIR, D1 reads it with a pull-down so a loose wire reads low. A development build flashes all three LEDs at start and blinks blue on every counted trigger. **It has not run on a Puck.** `node firmware/test-shell.js` runs the built file against stand-ins for Espruino's globals: 21 checks, 15 mutants, all caught. The stand-ins are my reading of Espruino's API, so this proves the shell and the core fit together and nothing about a board
+- **`tools/build-puck.js`**, new: joins core and shell into `build/puck-dev.js` (13003 bytes with comments; whether that fits comfortably in the Puck's memory is unverified). `--button-trigger` builds a variant where a short press while armed counts as a trigger and settling takes 2 s, for proving the radio and the watch with no PIR attached. There is no field build yet
+- **Brief found wrong:** the BS412 pin drawing is on page 3 of Adafruit's datasheet, not page 7 (read 2026-11-24 from `cdn-shop.adafruit.com/product-files/4666/Datasheet.pdf`). It labels 1 VSS, 2 ONTIME, 3 VDD, 4 REL, with the can's tab between pins 1 and 2, which matches the brief's wiring table. The four legs sit on a 2.54 mm diamond, so pushed straight into a breadboard two of them share a row; they have to be spread. I read the drawing as a view from the leg side, because the tab moves from lower right in the window view to upper right in the pin view. **Unverified** until a real sensor is wired: if the view is the other way, pins 3 and 4 swap
+- **Handoff replaced:** `mobile-motion-sensor-maf` is now the proof of concept, in two parts: the Puck's button buzzes the watch, then the PIR does. The bench session 1 runbook written earlier the same day is gone from it
+
 ## 2026-11-24: parts in hand; two fixes to the ESP32-C3 stand-in, still never run
 
 - **Owner, in session:** the Adafruit order has arrived (`mobile-motion-sensor-4vy` closed). A second Puck.js was ordered, so the second sensor ID is proven on a second device (`mobile-motion-sensor-jee`). On hand: a soldering iron, a multimeter with a microamp range and calipers. A 3D printer is potential access, not his own, which matters for `mobile-motion-sensor-zef`
