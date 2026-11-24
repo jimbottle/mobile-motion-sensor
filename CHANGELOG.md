@@ -2,6 +2,14 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-24: parts in hand; two fixes to the ESP32-C3 stand-in, still never run
+
+- **Owner, in session:** the Adafruit order has arrived (`mobile-motion-sensor-4vy` closed). A second Puck.js was ordered, so the second sensor ID is proven on a second device (`mobile-motion-sensor-jee`). On hand: a soldering iron, a multimeter with a microamp range and calipers. A 3D printer is potential access, not his own, which matters for `mobile-motion-sensor-zef`
+- **`tools/esp32-advertiser/esp32-advertiser.ino`** (`mobile-motion-sensor-7o0`), two low review findings fixed before any trial depends on the sketch:
+  - `radioOn` was set to true even when `adv->start()` failed, so status reported a burst that was not on the air. It now follows the result of `start()`, and a failed start is retried after 1 s
+  - the boot ID was drawn from `esp_random()` before `BLEDevice::init`, when the radio is off and the numbers are not truly random. It is drawn after
+- It compiles (622101 bytes, 47%) with the same command and core as on 2026-11-16. **It has still not run on a board**, and the failed-start path cannot be exercised until one is plugged in
+
 ## 2026-11-16: ESP32-C3 stand-in transmitter written; compiles, never run
 
 - **Changed plan:** the owner has no spare ESP32 after all. The board on hand, an UNO with an ESP8266, has no Bluetooth. The owner is adding an ESP32-C3-DevKit-RUST-2 (Adafruit 5787) to the parts order as the controlled advertiser, so the latency and loss trials (`mobile-motion-sensor-xx0`) wait for the box. This part is not in the brief's parts table

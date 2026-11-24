@@ -45,7 +45,7 @@ static uint16_t bootId, counter = 0;
 static bool armed = false, disarming = false, radioOn = false;
 static bool haveTrigger = false;
 static uint32_t lastTriggerAt = 0;
-static uint32_t advUntil = 0, nextBeat = 0, lastRefresh = 0;
+static uint32_t advUntil = 0, nextBeat = 0, lastRefresh = 0, radioRetryAt = 0;
 static uint32_t burstInterval = 20, burstMs = 3000, beatMs = 1200, beatPeriod = 10000;
 static uint32_t runLeft = 0, runGap = 0, runNext = 0;
 
@@ -75,18 +75,28 @@ static void refresh(uint32_t now) {
   lastRefresh = now;
 }
 
+/* radioOn is what the radio is doing, not what was asked for. If start() fails
+ * it stays false, so status and the age refresh never claim a burst that is
+ * not on the air, and the next try waits a second so the message is not
+ * printed every loop. */
 static void radio(bool on, uint32_t now) {
   if (on == radioOn) return;
-  if (on) {
-    uint16_t units = (uint16_t)((burstInterval * 1000UL) / 625UL);   // 0.625 ms units
-    adv->setMinInterval(units);
-    adv->setMaxInterval(units);
-    refresh(now);
-    if (!adv->start()) Serial.printf("! advertising did not start at %lu ms interval\n", (unsigned long)burstInterval);
-  } else {
+  if (!on) {
     adv->stop();
+    radioOn = false;
+    return;
   }
-  radioOn = on;
+  if ((int32_t)(now - radioRetryAt) < 0) return;
+  uint16_t units = (uint16_t)((burstInterval * 1000UL) / 625UL);   // 0.625 ms units
+  adv->setMinInterval(units);
+  adv->setMaxInterval(units);
+  refresh(now);
+  if (adv->start()) {
+    radioOn = true;
+  } else {
+    radioRetryAt = now + 1000;
+    Serial.printf("! advertising did not start at %lu ms interval, retry in 1 s\n", (unsigned long)burstInterval);
+  }
 }
 
 static void trigger(uint32_t now) {
@@ -136,7 +146,7 @@ static void command(String line, uint32_t now) {
   } else if (c == "x") {
     runLeft = 0;
   } else if (c == "i" && a1 >= 20 && a1 <= 10000) {
-    burstInterval = a1; radio(false, now);            // restarts with the new interval on the next loop
+    burstInterval = a1; radio(false, now); radioRetryAt = now;   // restarts with the new interval on the next loop
   } else if (c == "b" && a1 > 0) {
     burstMs = a1;
   } else if (c == "h" && a1 > 0 && a2 > 0) {
@@ -154,8 +164,10 @@ static void command(String line, uint32_t now) {
 
 void setup() {
   Serial.begin(115200);
-  bootId = esp_random() & 0xFFFF;
   BLEDevice::init("");
+  // After init, not before: esp_random() is only truly random once the radio
+  // is running. Before that, two power-ups could draw the same boot ID.
+  bootId = esp_random() & 0xFFFF;
   adv = BLEDevice::getAdvertising();
   // Accepts no connections and answers no scan requests, like a field build.
   // arduino-esp32 3.3 builds the C3 on NimBLE, so the type is NimBLE's constant.
