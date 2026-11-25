@@ -2,7 +2,7 @@
 
 A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someone walks into its view. A Puck.js v2 reads a passive infrared sensor and broadcasts over Bluetooth; the watch listens and buzzes. No phone, no hub.
 
-**State on 2026-11-24: the proof of concept works.** A Puck.js with a BS412 on jumper wires made the watch buzz on a hand wave, inconsistently. `CHANGELOG.md` has what was and was not measured.
+**State on 2026-11-24: the proof of concept works, unreliably, and whether this sensor is accurate enough is the open question.** A Puck.js with a BS412 on jumper wires makes the watch buzz when it sees movement, and switches itself off after 5 triggers in 60 seconds. The same evening the Puck restarted 18 times, the sensor was dead for a stretch and fired in a room thought empty, and none of that is explained. The next step is a test with the sensor's view narrowed by a tube across a doorway. `CHANGELOG.md` has what was measured, what was not, and what the agent got wrong.
 
 ## What is here
 
@@ -10,6 +10,8 @@ A small battery-powered motion sensor that buzzes a Bangle.js 2 watch when someo
 |---|---|
 | `docs/brief-2026-11-16.md` | The owner's brief: requirements, parts, wiring, bench plan and the list of unverified claims with their sources. A dated input, not edited afterwards |
 | `docs/protocol.md` | The Bluetooth protocol between sensor and watch, version 1 |
+| `docs/runbooks/bench-console.md` | How an agent loads a program onto the Puck and reads its log from a browser tab, and the rules for doing it without disturbing the hardware. **Read before connecting to the Puck** |
+| `docs/logs/` | Event logs read off the Puck, kept as evidence |
 | `docs/runbooks/puck-recovery.md` | Getting back into a Puck.js that cannot be reached over Bluetooth |
 | `firmware/core.js` | The sensor's logic with no hardware in it: armed state, counter, button, advertising schedule, packet bytes. Runs in Node and is meant to run on the Puck |
 | `firmware/test-core.js` | Its tests: `node firmware/test-core.js` |

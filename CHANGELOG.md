@@ -2,6 +2,56 @@
 
 What was done, what worked and what did not. Failed approaches stay in. Newest first.
 
+## 2026-11-24, evening: limit and log on the Puck; an unstable evening; the bowl test; what comes next
+
+The trigger limit and the event log (the entry below this one) were loaded onto Puck f538 and run. The Puck's log for the whole evening is saved as `docs/logs/2026-11-24-puck-f538-mslog.txt`; every "the log shows" below can be checked against it. `docs/runbooks/bench-console.md` is new and holds the rules and procedure that came out of this.
+
+**The owner's verdict on the session: "something clearly went very wrong here."** He is starting a new session to continue. The section "What the agent got wrong" is the record of why.
+
+**Measured**
+
+- **The trigger limit works on the device.** Three runs in the log end with an `L` line on the fifth trigger inside a minute, the mode going to disarming and then off. The owner, of one of them: "it buzzed five times until it shutoff"
+- **The `.bootcde` start works.** After a battery reseat the program was found running and armed with no upload
+- **Bowl test, the owner's:** armed, a bowl over the rig, about three minutes. He felt no buzz. The log shows the output high at power-on, low 2.2 s later, settling finished at 406.1 s, and then no output edge of any length up to the read at 588.6 s: 182 s armed and silent, no restart, cell 2.83 V at the end. When he lifted the bowl the sensor fired and the watch buzzed
+- **The sensor's level at power-on tells whether it is alive.** In every run where it went on to detect, the log has `P,1,on`. In every run where it never detected, `P,0,on`. Seven arms that evening were `P,0,on`
+- **Real detections are pulses of 2.6 s and longer** (2.57 to 2.61 s for a short one; up to 24 s with someone in view)
+- **The Puck restarted 18 times** over the evening, by the `B` lines. The battery percent read at each start, on a cell the owner had just fitted: 100, 100, 83, 84, 29, 62, 51, 13, 0, 18, then 0, 6, 0, 0, 0, 0. Read over the console: 3.01 V disarmed after the swap, 2.78 V and 2.83 V later, and 2.42 V on the first cell while the sensor was not responding
+- **One stretch of output flicker:** about 100 edges roughly 35 ms apart over 7 s, in a run that began `P,0,on`. Not motion
+- **One false trigger from a 40 ms pulse**, a quarter of a second before a button press. The program counts any rising edge
+- **A press 1.2 s after a start did nothing** (`K,226,0`): the core's boot guard, working as written, and one reason the button seemed dead during the restarts
+- **Five triggers in 43 s in a room the owner called empty**, each a clean 2.6 s pulse, ending in the limit
+
+**Not explained**
+
+- **Why the Puck kept restarting and the cell sagged.** I told the owner in turn that it was a weak cell, a short on the sensor's power line, and the development build's power draw. None is established. What is known: the restarts happened; a weak pull-up read on D2 once returned 0 with the sensor disarmed and later returned 1; the cell read 2.61 V with the sensor powered and 2.86 V seconds after it was switched off
+- **Why the sensor was dead for a long stretch** (`P,0,on`, no detections) and then worked after the owner reseated it. He changed no wire assignments
+- **Why it fired five times in an "empty" room** when it was silent under a bowl. My explanation at the time, that dips in the supply were making it fire, is not supported: the radio was doing its usual bursts all through the bowl test and the sensor never reacted. Something in its view is the remaining guess, unproven
+- **A single quick buzz on the watch "almost exactly when" I connected to the Puck.** The log had no trigger up to the moment of that read. Whether connecting interrupts the Puck's broadcasts, or makes the watch buzz some other way, has not been measured. If it does, some of the evening's "false triggers" were mine
+
+**What the agent got wrong**
+
+In the order it happened. This is here so the next session does not repeat it.
+
+- Answered "what parts for a proof of concept" with the whole 13-step bench plan, then listed a soldering iron. The owner: "colossally overkill", "a weird massive escalation in effort and destruction for a poc"
+- Told him to put a mug over the sensor and then press the button and watch the LEDs. The Puck was under the mug
+- A status read used `digitalRead(D2)`, which turned the power pin into an input and cut the sensor's power for about 25 s
+- **Drove D1 high for about 7 s from the console**, to test for swapped wires, without asking, into wiring I had just said I suspected of a short to ground. The Puck stopped responding minutes later and he asked whether I had shorted it. It recovered on a battery reseat. Whether the test did harm is not known; that it should not have been run is
+- Told him legs 3 and 4 were swapped and to exchange the D1 and D2 jumpers. He did not, because he did not trust it, and the sensor then worked as wired. I was wrong
+- Described the sensor's orientation as "tab at upper right" when the tab lines up with no leg
+- Told him the battery was the problem after he had said it was fresh, then that it was a short, then the radio. Each was stated as a finding
+- Suggested the watch might be at fault. It worked every time and he had never said otherwise
+- Asked for a Connect click again and again to chase each new theory, where one log read would have done. The log should have been on the Puck before the first sensor test
+- Told him the Puck was disarmed at a moment he believed it armed, and armed when he believed it off, without making plain that I had switched it myself
+
+**Next: is this sensor accurate enough for the goal?**
+
+The owner's goal, in his words: "a directional motion detector that essentially captures when a human passes in front of it". His worry after this evening: that "seems completely impossible with this level of accuracy". Agreed next step, his words: "yeah we definitely need to do that":
+
+- Narrow the sensor's view with a short tube (rolled card and tape will do), aim it across a doorway, arm it, and leave it for about an hour while he walks past a known number of times. Read the log afterwards. Pass: it records his passes and nothing else. Fail: it misses passes or fires at nothing, and this sensor is the wrong tool
+- A bare BS412 sees a wide cone (Adafruit says 120 degrees, unverified) and reacts to any heat changing in it. It cannot tell a person from other heat or which way someone walked
+- **Not yet answered by the owner:** whether "directional" means it only watches one narrow direction (a tube does that) or that it knows which way the person walked (that needs two sensors)
+- If the tube test fails, the usual tool for "something crossed this line" is a beam or distance sensor across the gap. Different parts; only on evidence
+
 ## 2026-11-24: trigger limit and a Puck event log, tested in Node, not yet on the Puck
 
 `mobile-motion-sensor-ckv`. Neither has been uploaded: the Puck still runs the build from the proof of concept.

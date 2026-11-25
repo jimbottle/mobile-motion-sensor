@@ -2,7 +2,7 @@
 
 How the sensor tells the watch what it is doing. Version 1, drafted 2026-11-16.
 
-**Nothing in this file has been measured.** No Puck has been powered and no scan has been run on the watch. Each figure is tagged:
+**Almost nothing in this file has been measured.** A Puck and the watch first ran this protocol on 2026-11-24, as a proof of concept; `CHANGELOG.md` for that date lists what was observed. The timing, range and power figures below are untouched by that. Each figure is tagged:
 
 - **[spec]** is a design choice made here. It is true by definition once the firmware implements it
 - **[doc]** was read from Espruino's own text on 2026-11-16: `libs/bluetooth/jswrap_bluetooth.c` and `ChangeLog` on the `master` branch of `github.com/espruino/Espruino`, or `espruino.com/Puck.js`. It has not been checked on a device
@@ -107,7 +107,7 @@ Sensor 1, boot ID `0xBEEF`, armed, counter 258, battery 87%, 1.2 s after its las
 - The watch gives no separate signal that the limit was reached. The sensor shows three red flashes. Whether the watch should say so is an owner decision that has not been asked
 - A trigger exactly 60 s after another is outside its window
 
-Both numbers are settings in `firmware/core.js` (`maxTriggers`, `triggerWindowMs`). They are tested in Node and **not yet run on a Puck**.
+Both numbers are settings in `firmware/core.js` (`maxTriggers`, `triggerWindowMs`). **[measured] 2026-11-24** on Puck f538: three runs in `docs/logs/2026-11-24-puck-f538-mslog.txt` end with the fifth trigger inside a minute, an `L` line and the sensor going off, and the owner felt five buzzes and then none.
 
 ## Timing
 
