@@ -107,7 +107,7 @@ Sensor 1, boot ID `0xBEEF`, armed, counter 258, battery 87%, 1.2 s after its las
 - The watch gives no separate signal that the limit was reached. The sensor shows three red flashes. Whether the watch should say so is an owner decision that has not been asked
 - A trigger exactly 60 s after another is outside its window
 
-Both numbers are settings in `firmware/core.js` (`maxTriggers`, `triggerWindowMs`). **[measured] 2026-11-24** on Puck f538: three runs in `docs/logs/2026-11-24-puck-f538-mslog.txt` end with the fifth trigger inside a minute, an `L` line and the sensor going off, and the owner felt five buzzes and then none.
+Both numbers are settings in `firmware/core.js` (`maxTriggers`, `triggerWindowMs`). **[measured] 2026-11-24** on Puck f538: four runs in `docs/logs/2026-11-24-puck-f538-mslog.txt` end with the fifth trigger inside a minute, an `L` line and the sensor going off, and the owner felt five buzzes and then none.
 
 ## Timing
 

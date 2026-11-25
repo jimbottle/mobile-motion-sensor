@@ -27,8 +27,10 @@ Open `http://localhost:8765/` in a tab the agent opened. The owner clicks Connec
 ## Loading a program
 
 ```bash
-node tools/build-puck.js                    # or --button-trigger
-cp build/puck-dev.js tools/puck-console/pir.tmp.js
+node tools/build-puck.js && cp build/puck-dev.js tools/puck-console/pir.tmp.js
+
+# or, for the build where the button stands in for the sensor:
+node tools/build-puck.js --button-trigger && cp build/puck-dev-button.js tools/puck-console/pir.tmp.js
 ```
 
 Then, in the page:
@@ -49,10 +51,10 @@ await puck.readLog()
 
 The format is at the top of `firmware/shell.js` (`logEv`). A saved example is `docs/logs/2026-11-24-puck-f538-mslog.txt`. Things that log taught:
 
-- **`P,<level>,on` is a health check.** It is the sensor's output the instant it gets power. In every run on 2026-11-24 where the sensor went on to detect, it was `P,1,on`. In every run where it never detected, it was `P,0,on`. A `0` there means the sensor is not alive: check the wiring before anything else
+- **`P,<level>,on` is a health check.** It is the sensor's output the instant it gets power. In the saved log there are five `P,1,on` power-ons: four went on to detect, and the fifth was the bowl test, where there was nothing to see. There are eight `P,0,on` power-ons and none produced a real detection. A `0` there means the sensor is not alive: check the wiring before anything else
 - **A real detection is a pulse of about 2.6 s or longer.** Edges tens of milliseconds apart are electrical, not motion. One 40 ms pulse was counted as a trigger; the program does not filter them yet
 - **Several `B` lines in a row with nothing between them is the Puck restarting in a loop.** The first number is the battery percent read at that start
-- The log stops at 16000 bytes and keeps the oldest lines. Clear it before a long run: `require("Storage").open("mslog","w").erase()`
+- The log stops at 16000 bytes and keeps the oldest lines. Clear it before a long run, and reset the running program's own count in the same command, or it goes on counting the erased bytes and may log little or nothing until the next restart: `require("Storage").open("mslog","w").erase(); logLen = 0; logOff = !CONFIG.log;`
 
 ## What the LEDs mean
 

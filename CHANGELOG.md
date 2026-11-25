@@ -10,10 +10,10 @@ The trigger limit and the event log (the entry below this one) were loaded onto 
 
 **Measured**
 
-- **The trigger limit works on the device.** Three runs in the log end with an `L` line on the fifth trigger inside a minute, the mode going to disarming and then off. The owner, of one of them: "it buzzed five times until it shutoff"
+- **The trigger limit works on the device.** Four runs in the log end with an `L` line on the fifth trigger inside a minute, the mode going to disarming and then off. The owner, of one of them: "it buzzed five times until it shutoff"
 - **The `.bootcde` start works.** After a battery reseat the program was found running and armed with no upload
 - **Bowl test, the owner's:** armed, a bowl over the rig, about three minutes. He felt no buzz. The log shows the output high at power-on, low 2.2 s later, settling finished at 406.1 s, and then no output edge of any length up to the read at 588.6 s: 182 s armed and silent, no restart, cell 2.83 V at the end. When he lifted the bowl the sensor fired and the watch buzzed
-- **The sensor's level at power-on tells whether it is alive.** In every run where it went on to detect, the log has `P,1,on`. In every run where it never detected, `P,0,on`. Seven arms that evening were `P,0,on`
+- **The sensor's level at power-on tells whether it is alive.** The log has five `P,1,on` power-ons: four went on to detect, and the fifth was the bowl test. It has eight `P,0,on` power-ons, six of which reached armed, and none produced a real detection (one counted a 40 ms pulse)
 - **Real detections are pulses of 2.6 s and longer** (2.57 to 2.61 s for a short one; up to 24 s with someone in view)
 - **The Puck restarted 18 times** over the evening, by the `B` lines. The battery percent read at each start, on a cell the owner had just fitted: 100, 100, 83, 84, 29, 62, 51, 13, 0, 18, then 0, 6, 0, 0, 0, 0. Read over the console: 3.01 V disarmed after the swap, 2.78 V and 2.83 V later, and 2.42 V on the first cell while the sensor was not responding
 - **One stretch of output flicker:** about 100 edges roughly 35 ms apart over 7 s, in a run that began `P,0,on`. Not motion

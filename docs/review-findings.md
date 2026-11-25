@@ -8,6 +8,7 @@ A finding goes here when it was **valid**: it described a real defect, and fixin
 
 Check these before committing.
 
+- **A number quoted from a file, not counted in it.** Three counts taken from memory of a log were wrong in a commit that offered the log as the evidence. `grep -c` before writing the number. Review 7703 #2
 - **A handler that observes also replaces.** Installing an error or event handler can switch off the platform's default behaviour. Before adding one, find out what stops happening. Review 7692 #1
 - **"Read back identical" proves the copy, not the source.** A byte-for-byte read-back passes for the wrong file as readily as for the right one. Validate what is about to be sent before the destructive step. Review 7687 #1
 - **A procedure that worked, left in the session that ran it.** If a record says a tool did something, the code that did it has to be in the tool. Before committing a result, check that every step that produced it can be repeated from the repo. Review 7685 #1
@@ -15,6 +16,12 @@ Check these before committing.
 - **A library call used from its header, without reading what it keeps.** A signature says what a call takes, not what it stores between calls. Before a loop or callback runs for an unbounded time, read the library's handler for anything that accumulates. Review 7681 #1
 
 ## 2026-11-24
+
+### Review 7703 of `f10cdae`, docs
+
+- **Medium. Valid.** `docs/runbooks/bench-console.md` said to clear the Puck's log with an erase alone. The running program keeps its own byte count, so after a clear it would have gone on counting the erased bytes and could have logged nothing through the doorway test. **Fixed:** the command now resets `logLen` and `logOff` too, in the runbook and in the comment in `firmware/shell.js`. Not run on a Puck
+- **Low. Valid.** Counts quoted from the saved log were wrong: four runs end with an `L` line, not three; eight `P,0,on` power-ons, not seven. Corrected in `CHANGELOG.md`, `docs/protocol.md` and the runbook, and the bowl run is now named as the one `P,1,on` with no detection
+- **Low. Valid.** The runbook's build step offered `--button-trigger` but copied the other build's file. Split into two commands
 
 ### Review 7692 of `f45b4cb`, `firmware/shell.js`
 

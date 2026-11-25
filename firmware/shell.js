@@ -48,7 +48,9 @@ function now() { return Math.round(getTime() * 1000); }
  * X lines may run LOG_X_RESERVE bytes past that, so an error is still
  * recorded when the log is full. Any Storage error turns logging off: the
  * log must never be what stops the sensor.
- * To clear it: require("Storage").open("mslog","w").erase()
+ * To clear it while the program runs, reset the count too, or it goes on
+ * counting the erased bytes:
+ *   require("Storage").open("mslog","w").erase(); logLen = 0; logOff = !CONFIG.log;
  */
 var LOG = "mslog", LOG_MAX = 16000, LOG_X_RESERVE = 1000, logLen = 0, logOff = !CONFIG.log;
 
