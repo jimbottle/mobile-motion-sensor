@@ -2,7 +2,7 @@
 
 How the sensor tells the watch what it is doing. Version 1, drafted 2026-11-16.
 
-**Nothing in this file has been measured.** No Puck has been powered and no scan has been run on the watch. Each figure is tagged:
+**Almost nothing in this file has been measured.** A Puck and the watch first ran this protocol on 2026-11-24, as a proof of concept; `CHANGELOG.md` for that date lists what was observed. The timing, range and power figures below are untouched by that. Each figure is tagged:
 
 - **[spec]** is a design choice made here. It is true by definition once the firmware implements it
 - **[doc]** was read from Espruino's own text on 2026-11-16: `libs/bluetooth/jswrap_bluetooth.c` and `ChangeLog` on the `master` branch of `github.com/espruino/Espruino`, or `espruino.com/Puck.js`. It has not been checked on a device
@@ -96,6 +96,18 @@ Sensor 1, boot ID `0xBEEF`, armed, counter 258, battery 87%, 1.2 s after its las
   - `d >= 32768`: the packet is older than what the watch has. Ignore it and log it once
 - Different boot ID, or a sensor ID with no stored record: adopt the received boot ID and counter as the new baseline. Buzz only if `ARMED` is set, the counter is not 0 and the age is under 255, which means a trigger happened in the last 25 seconds and the watch has no record of having reported it
 - The watch's record must survive `load()`, which resets the interpreter on every app switch (`../my-bangle/docs/bangle2-limits.md`, "What costs RAM"). It is written to Storage when it changes and on `E.on("kill")`. If the record is lost anyway, the rule above still catches a recent trigger
+
+## Trigger limit
+
+**[spec]**, set by the owner on 2026-11-24: the watch must not buzz more than 5 times in any 60 seconds, and a sensor that reaches that switches itself off.
+
+- The sensor enforces it, so it holds whatever the watch is doing. It keeps the times of its triggers since it was last armed. When a trigger is the 5th inside 60 s, the sensor counts it, then disarms itself exactly as a button press would: PIR power off, one burst with `DISARMING` set, then silence
+- That burst carries the new counter, so the watch buzzes for the 5th trigger and marks the sensor switched off from the same packets. No lost-sensor alert follows
+- Only the button arms it again. Arming starts a fresh count
+- The watch gives no separate signal that the limit was reached. The sensor shows three red flashes. Whether the watch should say so is an owner decision that has not been asked
+- A trigger exactly 60 s after another is outside its window
+
+Both numbers are settings in `firmware/core.js` (`maxTriggers`, `triggerWindowMs`). **[measured] 2026-11-24** on Puck f538: four runs in `docs/logs/2026-11-24-puck-f538-mslog.txt` end with the fifth trigger inside a minute, an `L` line and the sensor going off, and the owner felt five buzzes and then none.
 
 ## Timing
 

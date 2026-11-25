@@ -1,0 +1,160 @@
+<!doctype html>
+<!-- A one-button page for talking to a Puck.js console over Web Bluetooth.
+
+     The person clicks Connect and picks the Puck in Chrome's chooser, which is
+     the one step that must be a human click. Everything after that is driven
+     from the page's JavaScript: puck.upload(url, name) stores a file on the Puck and
+     reads it back, puck.run(name) runs it, puck.persist(name) makes it run
+     at every start. Underneath, puck.send(text) writes to the console and
+     puck.rx holds everything the Puck has said.
+
+     The eval() in the strings below is text sent to the Puck, which is how
+     Espruino runs a stored program. Nothing is eval'd in this page.
+
+     Serve it from this Mac, since Web Bluetooth needs a secure context and
+     localhost counts as one. From the repo root:
+
+       python3 -m http.server 8765 --bind 127.0.0.1 --directory tools/puck-console
+
+     then open http://localhost:8765/ -->
+<meta charset="utf-8">
+<title>Puck console</title>
+<style>
+  body { font: 16px system-ui, sans-serif; margin: 2rem; max-width: 50rem; }
+  button { font-size: 1.5rem; padding: 0.8rem 2rem; }
+  pre { background: #111; color: #ddd; padding: 1rem; min-height: 10rem; max-height: 24rem; overflow: auto; white-space: pre-wrap; }
+</style>
+<h1>Puck console</h1>
+<p><button id="connect">Connect</button> <span id="state">not connected</span></p>
+<pre id="log"></pre>
+<script>
+var NUS = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+var NUS_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";   // we write here
+var NUS_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";   // the Puck notifies here
+var puck = { rx: "", device: null, tx: null, connected: false, busy: false, error: "" };
+
+function show() {
+  document.getElementById("state").textContent =
+    (puck.connected ? "connected to " + puck.device.name : "not connected") + (puck.error ? "  (" + puck.error + ")" : "");
+  var log = document.getElementById("log");
+  log.textContent = puck.rx.slice(-4000);
+  log.scrollTop = log.scrollHeight;
+}
+
+puck.connect = async function () {
+  puck.error = "";
+  try {
+    puck.device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "Puck.js" }, { namePrefix: "Bangle.js" }, { services: [NUS] }],
+      optionalServices: [NUS]
+    });
+    puck.device.addEventListener("gattserverdisconnected", function () { puck.connected = false; show(); });
+    var server = await puck.device.gatt.connect();
+    var service = await server.getPrimaryService(NUS);
+    puck.tx = await service.getCharacteristic(NUS_TX);
+    var rx = await service.getCharacteristic(NUS_RX);
+    rx.addEventListener("characteristicvaluechanged", function (e) {
+      puck.rx += new TextDecoder("latin1").decode(e.target.value);
+      show();
+    });
+    await rx.startNotifications();
+    puck.connected = true;
+  } catch (e) { puck.error = String(e); }
+  show();
+};
+
+/* Write text to the console, 20 bytes at a time. Resolves when it has all gone. */
+puck.send = async function (text) {
+  if (!puck.connected) throw new Error("not connected");
+  if (puck.busy) throw new Error("a send is already running");
+  puck.busy = true;
+  try {
+    var bytes = new Uint8Array(text.length);
+    for (var i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 255;
+    for (var at = 0; at < bytes.length; at += 20)
+      await puck.tx.writeValueWithoutResponse(bytes.slice(at, at + 20));
+  } finally { puck.busy = false; }
+};
+
+/* Send one console command and wait until `until` shows up in the reply, or
+ * `ms` passes. Returns what the Puck said after the command was sent.
+ * Start a command with \x10 to stop the Puck echoing it back. */
+puck.ask = async function (cmd, until, ms) {
+  var from = puck.rx.length;
+  await puck.send(cmd);
+  var t0 = Date.now();
+  while (Date.now() - t0 < (ms || 4000)) {
+    var got = puck.rx.slice(from);
+    if (until && got.indexOf(until) >= 0) return got;
+    await new Promise(function (r) { setTimeout(r, 50); });
+  }
+  return puck.rx.slice(from);
+};
+
+/* Put a file in the Puck's Storage and prove it arrived.
+ *
+ * The console has no flow control, so the text goes in 192-character pieces
+ * and each one waits for the Puck to print that it was written. The file is
+ * then read back in base64 and compared with what was sent. ASCII only.
+ *
+ * `url` is fetched from this page's own server: copy the built file next to
+ * index.html as something.tmp.js (ignored by git) and pass "/something.tmp.js".
+ * Returns {ok, sent, back}; ok is true only if the read-back is identical. */
+puck.upload = async function (url, name) {
+  // Check what was fetched before anything on the Puck is erased: a wrong
+  // path gets the server's 404 page, which would otherwise replace the program.
+  var res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return { ok: false, fetchStatus: res.status };
+  var src = await res.text();
+  if (!src.length || /[^\x00-\x7F]/.test(src)) return { ok: false, reason: "empty or not ASCII" };
+  var q = JSON.stringify(name), CH = 192;
+  await puck.ask('\x03\x10require("Storage").erase(' + q + ');print("ERASED")\n', "ERASED", 4000);
+  for (var off = 0; off < src.length; off += CH) {
+    var r = await puck.ask('\x10print("K",require("Storage").write(' + q + "," + JSON.stringify(src.slice(off, off + CH)) +
+      "," + off + "," + src.length + ")," + off + ")\n", "K true " + off + "\r\n", 6000);
+    if (r.indexOf("K true " + off) < 0) return { ok: false, failedAt: off, said: r.slice(-200) };
+  }
+  var back = "";
+  for (var o = 0; o < src.length; o += 256) {
+    var r2 = await puck.ask('\x10print("R"+btoa(require("Storage").read(' + q + "," + o + ',256))+"Z")\n', "Z\r\n", 6000);
+    var m = /R([A-Za-z0-9+\/=]*)Z/.exec(r2);
+    if (!m) return { ok: false, readFailedAt: o, said: r2.slice(-200) };
+    back += atob(m[1]);
+  }
+  return { ok: back === src, sent: src.length, back: back.length };
+};
+
+/* Run an uploaded file now, from RAM. Returns the Puck's reply, which ends
+ * with free memory and the error flags. Do not send a button event in the
+ * second after this: the firmware ignores presses that close to its start. */
+puck.run = function (name) {
+  return puck.ask('\x10eval(require("Storage").read(' + JSON.stringify(name) +
+    '));onInit();print("RUN",process.memory().free,E.getErrorFlags(),"END")\n', "END", 8000);
+};
+
+/* Make the Puck run an uploaded file at every start, by writing a one-line
+ * .bootcde that evals it. Undo with require("Storage").erase(".bootcde"). */
+puck.persist = function (name) {
+  var boot = 'eval(require("Storage").read(' + JSON.stringify(name) + "));";
+  return puck.ask('\x10print("B",require("Storage").write(".bootcde",' + JSON.stringify(boot) + '),"END")\n', "END", 5000);
+};
+
+/* Read the sensor's event log (firmware/shell.js, logEv) and return it as
+ * text. The log is a StorageFile, so it is read through a file handle kept
+ * in a global on the Puck, 256 characters at a time, in base64. */
+puck.readLog = async function () {
+  await puck.ask('\x03\x10global.__f=require("Storage").open("mslog","r");print("OPEN")\n', "OPEN", 4000);
+  var text = "";
+  for (;;) {
+    var r = await puck.ask('\x10var __l=__f.read(256);print("R"+(__l===undefined?"":btoa(__l))+"Z")\n', "Z\r\n", 6000);
+    var m = /R([A-Za-z0-9+\/=]*)Z/.exec(r);
+    if (!m) throw new Error("log read failed: " + r.slice(-200));
+    if (!m[1]) return text;
+    text += atob(m[1]);
+  }
+};
+
+puck.disconnect = function () { if (puck.device && puck.device.gatt.connected) puck.device.gatt.disconnect(); };
+
+document.getElementById("connect").addEventListener("click", puck.connect);
+</script>
